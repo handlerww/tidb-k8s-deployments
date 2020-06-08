@@ -44,8 +44,6 @@ items:
       protocol: TCP
       targetPort: 2379
     type: ClusterIP
-  status:
-    loadBalancer: {}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -75,8 +73,6 @@ items:
       app.kubernetes.io/instance: basic
       app.kubernetes.io/name: tidb-cluster
     type: ClusterIP
-  status:
-    loadBalancer: {}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -92,8 +88,6 @@ items:
       protocol: TCP
       targetPort: 10080
     type: ClusterIP
-  status:
-    loadBalancer: {}
 - apiVersion: v1
   kind: Service
   metadata:
@@ -115,6 +109,5 @@ items:
       port: 20160
       protocol: TCP
       targetPort: 20160
-    publishNotReadyAddresses: true
     type: ClusterIP
 kind: List
