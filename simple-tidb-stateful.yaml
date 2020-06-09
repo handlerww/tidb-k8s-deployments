@@ -1,16 +1,44 @@
+# tidb
 apiVersion: v1
 kind: Service
 metadata:
-  name: basic-pd-peer
+  name: basic-tidb
   labels:
-    app: basic-pd-peer
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+spec:
+  selector:
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+  ports:
+  - name: mysql-client
+    port: 4000
+    protocol: TCP
+    targetPort: 4000
+  - name: status
+    port: 10080
+    protocol: TCP
+    targetPort: 10080
+  type: ClusterIP
+---
+#peer
+apiVersion: v1
+kind: Service
+metadata:
+  name: basic-tidb-peer
+  labels:
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
 spec:
   ports:
-  - port: 80
-    name: web
-  clusterIP: None
+  - name: status
+    port: 10080
+    protocol: TCP
+    targetPort: 10080
   selector:
-    app: nginx
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -23,6 +51,10 @@ spec:
   serviceName: "basic-tidb-peer"
   podManagementPolicy: Parallel
   replicas: 2
+  selector:
+     matchLabels:
+      app.kubernetes.io/component: tidb
+      app.kubernetes.io/instance: basic
   template:
     metadata:
       labels:

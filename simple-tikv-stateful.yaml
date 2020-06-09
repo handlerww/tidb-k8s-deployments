@@ -1,16 +1,21 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: basic-tikv-peer
   labels:
-    app: basic-tikv-peer
+    app.kubernetes.io/component: tikv
+    app.kubernetes.io/instance: basic
+  name: basic-tikv-peer
 spec:
   ports:
-  - port: 80
-    name: web
-  clusterIP: None
+  - name: peer
+    port: 20160
+    protocol: TCP
+    targetPort: 20160
+  publishNotReadyAddresses: true
   selector:
-    app: basic-tikv-peer
+    app.kubernetes.io/component: tikv
+    app.kubernetes.io/instance: basic
+  type: ClusterIP
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -25,7 +30,8 @@ spec:
   replicas: 3
   selector:
      matchLabels:
-       app: basic-tikv-peer
+      app.kubernetes.io/component: tikv
+      app.kubernetes.io/instance: basic
   template:
     metadata:
       labels:
