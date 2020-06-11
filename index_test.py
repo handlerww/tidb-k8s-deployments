@@ -2,30 +2,6 @@ import requests
 import unittest
 import json
 # Task1 get function work right
-api_token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkZack1lcjY5SzRkc0UxaTUtZE00S0lqNWpEZnRDVUpjMEFZZ0M2TEZ2TUkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuLW1neG1qIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiJmNmYwN2NlZS0xOTJmLTQ3YmMtOWRhNi1lZmQxMDQzYWY1YzkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06YWRtaW4tdXNlciJ9.Xo4RpuG2LuOCchgsAKxMGHIljDt5zl-fpxcZiFnCexVmnF4vtEjXqGXVb-BoZf9UbYbhmiQlh9iuL1ImURUYrPFoZXGyxsOZZmlXkJZIsiB8JAsc2vtM5CB7ESsG1-T6DltxngtwTIlsJ9Zqvo9YF288Hj1oVUsz9Oq0lCT8DFR_4NJ3lK-K8s7Iv12amz87Y2PnlGpVRoW3d9Xxy0SS76B3S5x3PMUZau_FhzqqE-LJXnHjUSBm39zeZ6EXeIbd17EaO_j9mN40UoYhV7LOKwj_2xql7ojsAVXJBdy77FPWQAPjvR5hGmQc83VmORZcX7-MxNrUGJwrLIkr7940oA"
-print()
-# ok
-# Second time :Resources is existed, check your configuration.
-
-# print(requests.post("http://127.0.0.1:5000/deploy",data={'api_token': "error",
-# 'apiserver': "https://47.113.195.245:6443",
-# 'namespace': "try",
-# 'pd_replicates': 3,
-# 'pd_version': "3.0.13",
-# 'tidb_replicates': 2,
-# 'tidb_version': "3.0.13",
-# 'tikv_replicates': 3,
-# 'tikv_version': "3.0.13"}).text)
-# print(requests.post("http://127.0.0.1:5000/deploy",data={'api_token': api_token,
-# 'apiserver': "https://error:6443",
-# 'namespace': "try",
-# 'pd_replicates': 3,
-# 'pd_version': "3.0.13",
-# 'tidb_replicates': 2,
-# 'tidb_version': "3.0.13",
-# 'tikv_replicates': 3,
-# 'tikv_version': "3.0.13"}).text)
-
 
 class index_test(unittest.TestCase):
     api_token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IkZack1lcjY5SzRkc0UxaTUtZE00S0lqNWpEZnRDVUpjMEFZZ0M2TEZ2TUkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuLW1neG1qIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiJmNmYwN2NlZS0xOTJmLTQ3YmMtOWRhNi1lZmQxMDQzYWY1YzkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06YWRtaW4tdXNlciJ9.Xo4RpuG2LuOCchgsAKxMGHIljDt5zl-fpxcZiFnCexVmnF4vtEjXqGXVb-BoZf9UbYbhmiQlh9iuL1ImURUYrPFoZXGyxsOZZmlXkJZIsiB8JAsc2vtM5CB7ESsG1-T6DltxngtwTIlsJ9Zqvo9YF288Hj1oVUsz9Oq0lCT8DFR_4NJ3lK-K8s7Iv12amz87Y2PnlGpVRoW3d9Xxy0SS76B3S5x3PMUZau_FhzqqE-LJXnHjUSBm39zeZ6EXeIbd17EaO_j9mN40UoYhV7LOKwj_2xql7ojsAVXJBdy77FPWQAPjvR5hGmQc83VmORZcX7-MxNrUGJwrLIkr7940oA"

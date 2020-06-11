@@ -17,38 +17,54 @@ export default () => {
     confirmLoading: false,
   });
 
-
   useMount(
     () => {
-      onTabChange('manage','noTitleKey')
+      RefreshClusterStatus('manage','noTitleKey')
+      let timer = setInterval(() => {
+        if (pageState.visible===false){
+          request.get('http://127.0.0.1:5000/status')
+          .then(function (response) {
+            setPageState({
+              ...pageState,
+              servertables: response
+            });
+          })
+          .catch(function (error) {
+            console.log(error);
+          });
+        }
+
+      },5000)
+      return () => {
+        clearInterval(timer)
+      };
     }
   )
   
   // Tables
   const columns = [
-    { title: 'Nodes', dataIndex: 'ip', key: 'ip' },
-    { title: 'Status', dataIndex: 'map', key: 'map' },
+    { title: 'Kubernetes Nodes', dataIndex: 'node', key: 'node' },
+    { title: 'Namespace', dataIndex: 'namespace', key: 'namespace' },
+    { title: 'Status', dataIndex: 'status', key: 'status' },
     {
       title: 'Action',
-      dataIndex: '',
-      key: 'x',
-      render: () => <div>
+      dataIndex: 'x',
+      key: 'node',
+      render: (_, record) => <div>
         <Popconfirm
           title="Are you sure you want to delete it?"
           onConfirm={(event) => {
-            console.log(event)
-            // request.post('http://127.0.0.1:5000/delete', {
-            //   method: 'POST',
-            //   data: { 'username': 'ioaejr' }
-            // }).then(function (response) {
-            //   setPageState({
-            //     ...pageState,
-            //     servertables: response['servers'],
-            //   });
-            // })
-            //   .catch(function (error) {
-            //     console.log(error);
-            //   });
+            console.log(record)
+            request.post('http://127.0.0.1:5000/delete', {
+              method: 'POST',
+              data: { 'apiserver': record.node ,'namespace':record.namespace}
+            }).then(function (response) {
+              message.success('Delete Proposal Submitted')
+              RefreshClusterStatus('manage','noTitleKey')
+            })
+              .catch(function (error) {
+                console.log(error);
+              });
           }}
           onCancel={() => {
           }}
@@ -69,18 +85,8 @@ export default () => {
   ];
 
   const onFinish = values => {
-    request.post('http://127.0.0.1:5000/deploy', {
+    request('http://127.0.0.1:5000/deploy', {
       method: 'POST',
-      data: values
-    }).then(function (response) {
-      console.log(response)
-    })
-      .catch(function (error) {
-        console.log(error);
-      });
-
-    request.put('http://rap2.taobao.org:38080/app/mock/232687/servers/create', {
-      method: 'PUT',
       data: values
     })
       .then(function (response) {
@@ -96,11 +102,12 @@ export default () => {
             confirmLoading: false,
           });
         }, 1000);
-        message.success("成功创建,服务器信息请看管理页面")
+        message.success("Proposal Submitted. Wait for Cluster Ready")
       })
       .catch(function (error) {
-        console.log(error);
+        message.error(error.data)
       });
+      RefreshClusterStatus('manage','noTitleKey')
   };
 
   const onFinishFailed = errorInfo => {
@@ -108,9 +115,6 @@ export default () => {
   };
 
   const contentListNoTitle = {
-    create: <div>
-      
-    </div>,
     manage: <div>
       <Table
         columns={columns}
@@ -122,26 +126,26 @@ export default () => {
   };
 
 
-  const onTabChange = (key, type) => {
-    if (key === 'manage') {
-      request.get('http://rap2.taobao.org:38080/app/mock/232687/servers/status')
-        .then(function (response) {
-          setPageState({
-            ...pageState,
-            [type]: key,
-            servertables: response['result']
+  const RefreshClusterStatus = (key, type) => {
+      if (key === 'manage') {
+        request.get('http://127.0.0.1:5000/status')
+          .then(function (response) {
+            setPageState({
+              ...pageState,
+              [type]: key,
+              servertables: response
+            });
+          })
+          .catch(function (error) {
+            console.log(error);
           });
-        })
-        .catch(function (error) {
-          console.log(error);
+  
+      } else {
+        setPageState({
+          ...pageState,
+          [type]: key
         });
-
-    } else {
-      setPageState({
-        ...pageState,
-        [type]: key
-      });
-    }
+      }
 
   };
 
@@ -155,9 +159,6 @@ export default () => {
     });
   };
 
-  const handleOk = () => {
-    
-  };
 
   const handleCancel = () => {
     setPageState({
@@ -173,7 +174,6 @@ export default () => {
         ghost={false}
         onBack={() => window.history.back()}
         title="TiDB Cluster Manager"
-        tags={<Tag color="blue">1 Cluster is Running</Tag>}
         subTitle=""
         extra={[
           <Button key="2" onClick={showModal} type="primary">Deploy</Button>,
@@ -300,12 +300,6 @@ export default () => {
           </Col>
         </Row>
 
-
-        <Form.Item name="monitor" valuePropName="checked">
-          <Checkbox>Monitor?</Checkbox>
-        </Form.Item>
-
-        
       </Form>
         </Modal>
       </PageHeader>
@@ -314,8 +308,8 @@ export default () => {
         style={{ width: '100%' }}
         tabList={tabListNoTitle}
         activeTabKey={pageState.noTitleKey}
-        onTabChange={key => {
-          onTabChange(key, 'noTitleKey');
+        RefreshClusterStatus={key => {
+          RefreshClusterStatus(key, 'noTitleKey');
         }}
       >
         {contentListNoTitle[pageState.noTitleKey]}

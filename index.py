@@ -98,7 +98,8 @@ def get_status(k8s_client):
     for namespace in ret.items:
         for sts in (k8s_client.AppsV1Api().list_namespaced_stateful_set(namespace=namespace.metadata.name)).items:
             result[sts.metadata.labels['app.kubernetes.io/component']] = {
-                'ready': str(sts.status.ready_replicas), 'replicas': str(sts.status.replicas)}
+                'ready': str(sts.status.ready_replicas), 'replicas': str(sts.status.replicas),
+                'namespace':str(namespace.metadata.name)}
     if result != {}:
         return(result)
     else:
@@ -119,7 +120,7 @@ def web_deploy():
         k8s_client = get_k8s_handler(
             APISERVER=request_params['apiserver'], Token=request_params['api_token'])
         server = {
-            'apiserevr': request_params['apiserver'], 'token': request_params['api_token']}
+            'apiserver': request_params['apiserver'], 'token': request_params['api_token']}
         request_params.pop('apiserver')
         request_params.pop('api_token')
     
@@ -128,7 +129,7 @@ def web_deploy():
         for i in serverlist:
             if i['apiserver'] == server['apiserver']:
                 serverlist.remove(server)
-            serverlist.append(server)
+        serverlist.append(server)
         with open('serverlist.json', 'w') as fp:
             json.dump(serverlist, fp=fp)
         resp = make_response('ok', 200)
@@ -159,7 +160,11 @@ def web_status():
     for server in serverlist:
         k8s_client = get_k8s_handler(
             APISERVER=server['apiserver'], Token=server['token'])
-        result.append(get_status(k8s_client))
+        status = get_status(k8s_client)
+        if(status):
+            result.append({'namespace':status['pd']['namespace'],'node':server['apiserver'],'status':'pd:'+status['pd']['ready']+'/'+status['pd']['replicas']+' tikv:'+status['tikv']['ready']+'/'+status['tikv']['replicas']+' tidb:'+status['tidb']['ready']+'/'+status['tidb']['replicas']})
+        else:
+            serverlist.remove(server)
     resp = make_response(json.dumps(result), 200)
     return resp
 
