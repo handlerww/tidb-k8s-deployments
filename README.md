@@ -6,7 +6,8 @@ TiDB Simple K8S Deployments Tools is a tools to help you easily manage TiDB clus
 # Requirements
 - Docker
 - Kubernetes (Cluster Admin Token for cluster management and right configured StorageClasses for data)
-
+- *OpenEBS for storageclasses(You may use NFS or some other to provide storage service. that`s ok)
+- *Kubeasz, Minikube, kind, kubeadm or some other kubernetes deployments tools.
 # Quick Start
 ```bash
 git clone https://github.com/handlerww/tidb-k8s-deployments.git
