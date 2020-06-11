@@ -210,4 +210,4 @@ if __name__ == '__main__':
             serverlist = json.load(fp=fp)
     except:
         serverlist = []
-    app.run()
+    app.run(host='0.0.0.0')
