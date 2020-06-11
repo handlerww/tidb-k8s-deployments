@@ -372,6 +372,3 @@ items:
       echo "/tikv-server ${ARGS}"
       exec /tikv-server ${ARGS}
 kind: List
-metadata:
-  resourceVersion: ""
-  selfLink: ""
