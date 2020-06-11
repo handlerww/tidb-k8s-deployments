@@ -1,0 +1,169 @@
+# tidb
+apiVersion: v1
+kind: Service
+metadata:
+  name: basic-tidb
+  labels:
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+spec:
+  selector:
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+  ports:
+  - name: mysql-client
+    port: 4000
+    protocol: TCP
+    targetPort: 4000
+  - name: status
+    port: 10080
+    protocol: TCP
+    targetPort: 10080
+  type: ClusterIP
+---
+#peer
+apiVersion: v1
+kind: Service
+metadata:
+  name: basic-tidb-peer
+  labels:
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+spec:
+  ports:
+  - name: status
+    port: 10080
+    protocol: TCP
+    targetPort: 10080
+  selector:
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: basic-tidb
+  labels:
+    app.kubernetes.io/component: tidb
+    app.kubernetes.io/instance: basic
+spec:
+  serviceName: "basic-tidb-peer"
+  podManagementPolicy: Parallel
+  replicas: 2
+  selector:
+     matchLabels:
+      app.kubernetes.io/component: tidb
+      app.kubernetes.io/instance: basic
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: tidb
+        app.kubernetes.io/instance: basic
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - touch /var/log/tidb/slowlog; tail -n0 -F /var/log/tidb/slowlog;
+        image: busybox:1.26.2
+        imagePullPolicy: IfNotPresent
+        name: slowlog
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/log/tidb
+          name: slowlog
+      - command:
+        - /bin/sh
+        - /usr/local/bin/tidb_start_script.sh
+        env:
+        - name: CLUSTER_NAME
+          value: basic
+        - name: TZ
+          value: UTC
+        - name: BINLOG_ENABLED
+          value: "false"
+        - name: SLOW_LOG_FILE
+          value: /var/log/tidb/slowlog
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: HEADLESS_SERVICE_NAME
+          value: basic-tidb-peer
+        image: pingcap/tidb:v3.0.13
+        imagePullPolicy: IfNotPresent
+        name: tidb
+        ports:
+        - containerPort: 4000
+          name: server
+          protocol: TCP
+        - containerPort: 10080
+          name: status
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          successThreshold: 1
+          tcpSocket:
+            port: 4000
+          timeoutSeconds: 1
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/podinfo
+          name: annotations
+          readOnly: true
+        - mountPath: /etc/tidb
+          name: config
+          readOnly: true
+        - mountPath: /usr/local/bin
+          name: startup-script
+          readOnly: true
+        - mountPath: /var/log/tidb
+          name: slowlog
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - downwardAPI:
+          defaultMode: 420
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.annotations
+            path: annotations
+        name: annotations
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: config-file
+            path: tidb.toml
+          name: basic-tidb
+        name: config
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: startup-script
+            path: tidb_start_script.sh
+          name: basic-tidb
+        name: startup-script
+      - emptyDir: {}
+        name: slowlog
+  updateStrategy:
+    rollingUpdate:
+      partition: 2
+    type: RollingUpdate
+  

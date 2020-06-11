@@ -1,0 +1,377 @@
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: basic-monitor
+  data:
+    dashboard-config: |-
+      {
+          "apiVersion": 1,
+          "providers": [
+              {
+                  "folder": "",
+                  "name": "0",
+                  "options": {
+                      "path": "/grafana-dashboard-definitions/tidb"
+                  },
+                  "orgId": 1,
+                  "type": "file"
+              }
+          ]
+      }
+    prometheus-config: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+      rule_files:
+      - /prometheus-rules/rules/*.rules.yml
+      scrape_configs:
+      - job_name: pd
+        honor_labels: true
+        scrape_interval: 15s
+        scheme: http
+        kubernetes_sd_configs:
+        - api_server: null
+          role: pod
+          namespaces:
+            names:
+            - ""
+        tls_config:
+          insecure_skip_verify: true
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          regex: basic
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+          regex: pd
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          regex: "true"
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          regex: (.+)
+          target_label: __metrics_path__
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name, __meta_kubernetes_pod_label_app_kubernetes_io_instance,
+            __meta_kubernetes_pod_annotation_prometheus_io_port]
+          regex: (.+);(.+);(.+)
+          target_label: __address__
+          replacement: $1.$2-pd-peer:$3
+          action: replace
+        - source_labels: [__meta_kubernetes_namespace]
+          target_label: kubernetes_namespace
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: instance
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          target_label: cluster
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: instance
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          target_label: cluster
+          action: replace
+      - job_name: tidb
+        honor_labels: true
+        scrape_interval: 15s
+        scheme: http
+        kubernetes_sd_configs:
+        - api_server: null
+          role: pod
+          namespaces:
+            names:
+            - ""
+        tls_config:
+          insecure_skip_verify: true
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          regex: basic
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+          regex: tidb
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          regex: "true"
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          regex: (.+)
+          target_label: __metrics_path__
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name, __meta_kubernetes_pod_label_app_kubernetes_io_instance,
+            __meta_kubernetes_pod_annotation_prometheus_io_port]
+          regex: (.+);(.+);(.+)
+          target_label: __address__
+          replacement: $1.$2-tidb-peer:$3
+          action: replace
+        - source_labels: [__meta_kubernetes_namespace]
+          target_label: kubernetes_namespace
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: instance
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          target_label: cluster
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: instance
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          target_label: cluster
+          action: replace
+      - job_name: tikv
+        honor_labels: true
+        scrape_interval: 15s
+        scheme: http
+        kubernetes_sd_configs:
+        - api_server: null
+          role: pod
+          namespaces:
+            names:
+            - ""
+        tls_config:
+          insecure_skip_verify: true
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          regex: basic
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+          regex: tikv
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          regex: "true"
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          regex: (.+)
+          target_label: __metrics_path__
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name, __meta_kubernetes_pod_label_app_kubernetes_io_instance,
+            __meta_kubernetes_pod_annotation_prometheus_io_port]
+          regex: (.+);(.+);(.+)
+          target_label: __address__
+          replacement: $1.$2-tikv-peer:$3
+          action: replace
+        - source_labels: [__meta_kubernetes_namespace]
+          target_label: kubernetes_namespace
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: instance
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          target_label: cluster
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_name]
+          target_label: instance
+          action: replace
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance]
+          target_label: cluster
+          action: replace
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: basic-pd
+  data:
+    config-file: ""
+    startup-script: |
+      #!/bin/sh
+
+      # This script is used to start pd containers in kubernetes cluster
+
+      # Use DownwardAPIVolumeFiles to store informations of the cluster:
+      # https://kubernetes.io/docs/tasks/inject-data-application/downward-api-volume-expose-pod-information/#the-downward-api
+      #
+      #   runmode="normal/debug"
+      #
+
+      set -uo pipefail
+
+      ANNOTATIONS="/etc/podinfo/annotations"
+
+      if [[ ! -f "${ANNOTATIONS}" ]]
+      then
+          echo "${ANNOTATIONS} does't exist, exiting."
+          exit 1
+      fi
+      source ${ANNOTATIONS} 2>/dev/null
+
+      runmode=${runmode:-normal}
+      if [[ X${runmode} == Xdebug ]]
+      then
+          echo "entering debug mode."
+          tail -f /dev/null
+      fi
+
+      # Use HOSTNAME if POD_NAME is unset for backward compatibility.
+      POD_NAME=${POD_NAME:-$HOSTNAME}
+      # the general form of variable PEER_SERVICE_NAME is: "<clusterName>-pd-peer"
+      cluster_name=`echo ${PEER_SERVICE_NAME} | sed 's/-pd-peer//'`
+      domain="${POD_NAME}.${PEER_SERVICE_NAME}.${NAMESPACE}.svc"
+      discovery_url="${cluster_name}-discovery.${NAMESPACE}.svc:10261"
+      encoded_domain_url=`echo ${domain}:2380 | base64 | tr "\n" " " | sed "s/ //g"`
+      elapseTime=0
+      period=1
+      threshold=30
+      while true; do
+      sleep ${period}
+      elapseTime=$(( elapseTime+period ))
+
+      if [[ ${elapseTime} -ge ${threshold} ]]
+      then
+      echo "waiting for pd cluster ready timeout" >&2
+      exit 1
+      fi
+
+      if nslookup ${domain} 2>/dev/null
+      then
+      echo "nslookup domain ${domain}.svc success"
+      break
+      else
+      echo "nslookup domain ${domain} failed" >&2
+      fi
+      done
+
+      ARGS="--data-dir=/var/lib/pd \
+      --name=${POD_NAME} \
+      --peer-urls=http://0.0.0.0:2380 \
+      --advertise-peer-urls=http://${domain}:2380 \
+      --client-urls=http://0.0.0.0:2379 \
+      --advertise-client-urls=http://${domain}:2379 \
+      --config=/etc/pd/pd.toml \
+      "
+      
+      if [ ${POD_NAME: -1} -ne 0 ] 
+      then
+        # Todo: How to fetch replicates_num
+        replicates_num=$((${POD_NAME: -1}))
+        result="--join="
+        for i in `seq 0 $replicates_num`
+        do
+            result="${result}http://${POD_NAME:0:-1}${i}.${PEER_SERVICE_NAME}.${NAMESPACE}.svc:2379,"
+        done
+        # result="${result}http://${POD_NAME:0:-1}0.${PEER_SERVICE_NAME}.${NAMESPACE}.svc:2379,"
+        result="${result:0:-1}"
+        
+        ARGS="${ARGS}${result}"
+      fi
+      echo "starting pd-server ..."
+      sleep $((RANDOM % 10))
+      echo "/pd-server ${ARGS}"
+      exec /pd-server ${ARGS}
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: basic-tidb
+  data:
+    config-file: |
+      [log]
+        [log.file]
+          max-backups = 3
+    startup-script: |
+      #!/bin/sh
+
+      # This script is used to start tidb containers in kubernetes cluster
+
+      # Use DownwardAPIVolumeFiles to store informations of the cluster:
+      # https://kubernetes.io/docs/tasks/inject-data-application/downward-api-volume-expose-pod-information/#the-downward-api
+      #
+      #   runmode="normal/debug"
+      #
+      set -uo pipefail
+
+      ANNOTATIONS="/etc/podinfo/annotations"
+
+      if [[ ! -f "${ANNOTATIONS}" ]]
+      then
+          echo "${ANNOTATIONS} does't exist, exiting."
+          exit 1
+      fi
+      source ${ANNOTATIONS} 2>/dev/null
+      runmode=${runmode:-normal}
+      if [[ X${runmode} == Xdebug ]]
+      then
+          echo "entering debug mode."
+          tail -f /dev/null
+      fi
+
+      # Use HOSTNAME if POD_NAME is unset for backward compatibility.
+      POD_NAME=${POD_NAME:-$HOSTNAME}
+      ARGS="--store=tikv \
+      --advertise-address=${POD_NAME}.${HEADLESS_SERVICE_NAME}.${NAMESPACE}.svc \
+      --host=0.0.0.0 \
+      --path=${CLUSTER_NAME}-pd:2379 \
+      --config=/etc/tidb/tidb.toml
+      "
+
+      if [[ X${BINLOG_ENABLED:-} == Xtrue ]]
+      then
+          ARGS="${ARGS} --enable-binlog=true"
+      fi
+
+      SLOW_LOG_FILE=${SLOW_LOG_FILE:-""}
+      if [[ ! -z "${SLOW_LOG_FILE}" ]]
+      then
+          ARGS="${ARGS} --log-slow-query=${SLOW_LOG_FILE:-}"
+      fi
+
+      echo "start tidb-server ..."
+      echo "/tidb-server ${ARGS}"
+      exec /tidb-server ${ARGS}
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: basic-tikv
+  data:
+    config-file: ""
+    startup-script: |
+      #!/bin/sh
+      # This script is used to start tikv containers in  kubernetes cluster
+      # Use DownwardAPIVolumeFiles to store informations of the cluster:
+      # https://kubernetes.io/docs/tasks/inject-data-application/downward-api-volume-expose-pod-information/#the-downward-api
+      #runmode="normal/debug"
+
+      set -uo pipefail
+
+      ANNOTATIONS="/etc/podinfo/annotations"
+
+      if [[ ! -f "${ANNOTATIONS}" ]]
+      then
+          echo "${ANNOTATIONS} does't exist,
+            exiting."
+          exit 1
+      fi
+      source ${ANNOTATIONS} 2>/dev/null
+
+      runmode=${runmode:-normal}
+      if
+            [[ X${runmode} == Xdebug ]]
+      then
+        echo "entering debug mode."
+        tail -f
+            /dev/null
+      fi
+
+      # Use HOSTNAME if POD_NAME is unset for backward compatibility.
+      POD_NAME=${POD_NAME:-$HOSTNAME}
+      ARGS="--pd=http://${CLUSTER_NAME}-pd:2379      \
+      --advertise-addr=${POD_NAME}.${HEADLESS_SERVICE_NAME}.${NAMESPACE}.svc:20160 \
+      --addr=0.0.0.0:20160 \
+      --status-addr=0.0.0.0:20180 \
+      --data-dir=/var/lib/tikv   \
+      --capacity=${CAPACITY} \
+      --config=/etc/tikv/tikv.toml
+      "
+
+      if [ ! -z "${STORE_LABELS:-}" ]; then
+        LABELS=" --labels ${STORE_LABELS} "
+        ARGS="${ARGS}${LABELS}"
+      fi
+
+      echo "starting tikv-server ..."
+      echo "/tikv-server ${ARGS}"
+      exec /tikv-server ${ARGS}
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""

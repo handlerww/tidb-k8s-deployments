@@ -1,0 +1,268 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: basic-monitor
+---
+kind: Secret
+apiVersion: v1
+metadata:
+  name: basic-monitor
+  labels:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+data:
+  password: ''
+  username: ''
+type: Opaque
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: basic-monitor
+  labels:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+rules:
+  - verbs:
+      - get
+      - list
+      - watch
+    apiGroups:
+      - ''
+    resources:
+      - pods
+  - verbs:
+      - get
+    nonResourceURLs:
+      - /metrics
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: basic-monitor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: basic-monitor
+  namespace: try
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+      app.kubernetes.io/component: monitor
+      app.kubernetes.io/instance: basic
+  name: basic-prometheus
+spec:
+  ports:
+  - name: http-prometheus
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+  name: basic-monitor-reloader
+spec:
+  ports:
+  - name: tcp-reloader
+    port: 9089
+    protocol: TCP
+    targetPort: 9089
+  selector:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+  name: basic-grafana
+spec:
+  ports:
+  - name: http-grafana
+    port: 3000
+    protocol: TCP
+    targetPort: 3000
+  selector:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/instance: basic
+  name: basic-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: monitor
+      app.kubernetes.io/instance: basic
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: monitor
+        app.kubernetes.io/instance: basic
+    spec:
+      containers:
+      - image: prom/prometheus:v2.18.1
+        imagePullPolicy: IfNotPresent
+        name: prometheus
+        command:
+        - /bin/prometheus
+        - --web.enable-admin-api
+        - --web.enable-lifecycle
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/data/prometheus
+        - --storage.tsdb.retention=0d
+        env:
+        - name: TZ
+          value: UTC
+        ports:
+        - containerPort: 9090
+          name: prometheus
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /etc/prometheus
+          name: prometheus-config
+          readOnly: true
+        - mountPath: /data
+          name: monitor-data
+        - mountPath: /prometheus-rules
+          name: prometheus-rules
+      - image: pingcap/tidb-monitor-reloader:v1.0.1
+        imagePullPolicy: IfNotPresent
+        name: reloader
+        command:
+        - /bin/reload
+        - --root-store-path=/data
+        - --sub-store-path=pingcap/tidb:v3.0.13
+        - --watch-path=/prometheus-rules/rules
+        - --prometheus-url=http://127.0.0.1:9090
+        env:
+        - name: TZ
+          value: UTC
+        ports:
+        - containerPort: 9089
+          name: reloader
+          protocol: TCP
+        resources: {}
+        volumeMounts:
+        - mountPath: /prometheus-rules
+          name: prometheus-rules
+        - mountPath: /data
+          name: monitor-data
+      - image: grafana/grafana:6.0.1
+        imagePullPolicy: IfNotPresent
+        name: grafana
+        env:
+        - name: GF_PATHS_DATA
+          value: /data/grafana
+        - name: TZ
+          value: UTC
+        ports:
+        - containerPort: 3000
+          name: grafana
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /data
+          name: monitor-data
+        - mountPath: /etc/grafana/provisioning/datasources
+          name: datasource
+        - mountPath: /etc/grafana/provisioning/dashboards
+          name: dashboards-provisioning
+        - mountPath: /grafana-dashboard-definitions/tidb
+          name: grafana-dashboard
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - image: pingcap/tidb-monitor-initializer:v3.0.13
+        imagePullPolicy: IfNotPresent
+        name: monitor-initializer
+        command:
+        - /bin/sh
+        - -c
+        - |-
+          mkdir -p /data/prometheus /data/grafana
+          chmod 777 /data/prometheus /data/grafana
+          /usr/bin/init.sh
+        env:
+        - name: TIDB_CLUSTER_NAME
+          value: basic
+        - name: TIDB_ENABLE_BINLOG
+          value: "false"
+        - name: PROM_CONFIG_PATH
+          value: /prometheus-rules
+        - name: PROM_PERSISTENT_DIR
+          value: /data
+        - name: TIDB_VERSION
+          value: pingcap/tidb:v3.0.13
+        - name: GF_TIDB_PROMETHEUS_URL
+          value: http://127.0.0.1:9090
+        - name: TIDB_CLUSTER_NAMESPACE
+          value: try
+        - name: TZ
+          value: UTC
+        - name: GF_PROVISIONING_PATH
+          value: /grafana-dashboard-definitions/tidb
+        - name: GF_DATASOURCE_PATH
+          value: /etc/grafana/provisioning/datasources
+        
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /prometheus-rules
+          name: prometheus-rules
+        - mountPath: /data
+          name: monitor-data
+        - mountPath: /etc/grafana/provisioning/datasources
+          name: datasource
+        - mountPath: /grafana-dashboard-definitions/tidb
+          name: grafana-dashboard
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: basic-monitor
+      serviceAccountName: basic-monitor
+      volumes:
+      - emptyDir: {}
+        name: monitor-data
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: prometheus-config
+            path: prometheus.yml
+          name: basic-monitor
+        name: prometheus-config
+      - emptyDir: {}
+        name: datasource
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: dashboard-config
+            path: dashboards.yaml
+          name: basic-monitor
+        name: dashboards-provisioning
+      - emptyDir: {}
+        name: grafana-dashboard
+      - emptyDir: {}
+        name: prometheus-rules
