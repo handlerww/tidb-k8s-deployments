@@ -22,14 +22,14 @@ app = Flask(__name__,static_url_path='/')
 CORS(app)
 
 
-def get_k8s_handler(APISERVER, Token):
+def get_k8s_configuration(APISERVER, Token):
     configuration = client.Configuration()
     configuration.host = APISERVER
     #     for developement server
     configuration.verify_ssl = False
     configuration.api_key = {"authorization": "Bearer " + Token}
-    client.Configuration.set_default(configuration)
-    return client
+    
+    return configuration
 
 
 def create_deployment(k8s_client, namespace,
@@ -116,14 +116,17 @@ def web_deploy():
         if type(request_params['pd_replicates'])!=int or type(request_params['tikv_replicates'])!=int or type(request_params['tidb_replicates'])!=int:
             raise Exception("KeyError")
         if request_params['pd_version']=='' or request_params['tikv_version']=='' or request_params['tidb_version']=='':
-            raise Exception("KeyError")    
-        k8s_client = get_k8s_handler(
-            APISERVER=request_params['apiserver'], Token=request_params['api_token'])
+            raise Exception("KeyError")  
+        
+        client.Configuration.set_default(get_k8s_configuration(APISERVER=request_params['apiserver'], Token=request_params['api_token']))
+
+        k8s_client = client
+            
         server = {
             'apiserver': request_params['apiserver'], 'token': request_params['api_token']}
         request_params.pop('apiserver')
         request_params.pop('api_token')
-    
+
         create_namespaces(k8s_client, namespace=request_params['namespace'])
         create_deployment(k8s_client, **request_params)
         for i in serverlist:
@@ -138,6 +141,7 @@ def web_deploy():
         resp = make_response('KeyError', 500)
         return resp
     except Exception as e:
+        print(str(e))
         if 'exists' in str(e):
             resp = make_response('Resources exists, check your configuration.', 500)
             return resp
@@ -158,8 +162,9 @@ def web_deploy():
 def web_status():
     result = []
     for server in serverlist:
-        k8s_client = get_k8s_handler(
-            APISERVER=server['apiserver'], Token=server['token'])
+        client.Configuration.set_default(get_k8s_configuration(APISERVER=server['apiserver'], Token=server['token']))
+
+        k8s_client = client
         status = get_status(k8s_client)
         if(status):
             result.append({'namespace':status['pd']['namespace'],'node':server['apiserver'],'status':'pd:'+status['pd']['ready']+'/'+status['pd']['replicas']+' tikv:'+status['tikv']['ready']+'/'+status['tikv']['replicas']+' tidb:'+status['tidb']['ready']+'/'+status['tidb']['replicas']})
@@ -179,8 +184,9 @@ def web_delete():
                 server=i
         if server == {}:
             raise Exception("Cluster Not Found")
-        k8s_client = get_k8s_handler(
-            APISERVER=server['apiserver'], Token=server['token'])
+        client.Configuration.set_default(get_k8s_configuration(APISERVER=server['apiserver'], Token=server['token']))
+
+        k8s_client = client
         result = release_namespaces(k8s_client, namespace=request_params['namespace'])
         if result == 'ok':
             for i in serverlist:
