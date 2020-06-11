@@ -1,4 +1,5 @@
 *.sh
 ./venv
-./.vscode
+.vscode
 serverlist.json
+__pycache__
