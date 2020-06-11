@@ -6,7 +6,7 @@ import json
 import yaml
 from flask import Flask
 from flask import request
-from flask import make_response
+from flask import make_response,render_template
 from flask_cors import *
 
 try:
@@ -18,7 +18,7 @@ base_path = ''
 urllib3.disable_warnings()
 
 
-app = Flask(__name__)
+app = Flask(__name__,static_url_path='/')
 CORS(app)
 
 
@@ -106,7 +106,7 @@ def get_status(k8s_client):
         return()
 
 
-@app.route('/deploy', methods=['POST'])
+@app.route('/api/deploy', methods=['POST'])
 def web_deploy():
     try:
         request_params = request.get_json()
@@ -154,7 +154,7 @@ def web_deploy():
             resp = make_response(str(e), 500)
             return resp
 
-@app.route('/status', methods=['GET'])
+@app.route('/api/status', methods=['GET'])
 def web_status():
     result = []
     for server in serverlist:
@@ -169,7 +169,7 @@ def web_status():
     return resp
 
 
-@app.route('/delete', methods=['POST'])
+@app.route('/api/delete', methods=['POST'])
 def web_delete():
     try:
         request_params = request.get_json()
@@ -200,11 +200,9 @@ def web_delete():
         else:
             resp = make_response(str(e), 200)
             return resp
-    # k8s handler non exists 连接不上
-    # namespace non exists 命名空间不存在
-    # serverlist read error serverlist没有更新
-
-
+@app.route('/', methods=['GET'])
+def home():
+    return render_template('index.html')
 if __name__ == '__main__':
     serverlist = []
     try:
